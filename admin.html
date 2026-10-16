@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>ROKI Admin</title>
+<style>
+:root{--bg:#0b1616;--card:#132424;--ink:#e7efed;--mut:#a3b8b5;--head:#86d6c9;--gold:#d9b26a;--line:#244240;--bad:#e07a6b}
+*{box-sizing:border-box;margin:0}body{background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,Segoe UI,Arial,sans-serif;padding-bottom:3rem}
+header{background:#0f3d3e;padding:1rem 5vw;display:flex;justify-content:space-between;align-items:center}header b{font:600 1.3rem Georgia,serif;letter-spacing:.15em}
+main{width:min(1050px,92vw);margin:1.5rem auto}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.3rem;margin-bottom:1rem}
+h2{color:var(--head);font:600 1.3rem Georgia,serif;margin-bottom:.8rem}label{display:block;font-size:.75rem;color:var(--mut);text-transform:uppercase;letter-spacing:.08em;margin:.7rem 0 .25rem}
+input,textarea,select{width:100%;padding:.6rem .8rem;border-radius:10px;border:1px solid var(--line);background:#0e1c1c;color:var(--ink);font:inherit}
+button,.btn{background:var(--gold);color:#1b1405;border:0;border-radius:99px;padding:.55rem 1.2rem;font-weight:600;cursor:pointer;margin-top:.8rem}button.alt{background:transparent;color:var(--ink);border:1px solid var(--line)}button.del{background:transparent;color:var(--bad);border:1px solid var(--bad);padding:.25rem .8rem;margin:0}
+.tabs{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap}.tabs button{margin:0;background:transparent;color:var(--ink);border:1px solid var(--line)}.tabs button.on{background:var(--gold);color:#1b1405}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem}
+.slot img{width:100%;height:140px;object-fit:cover;border-radius:10px;background:#0e1c1c}.slot h3{font-size:.95rem;margin:.5rem 0 0}
+.ev{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:.7rem 0;border-bottom:1px solid var(--line)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.8rem;margin-bottom:1rem}.stats div{background:#0e1c1c;border-radius:12px;padding:.8rem}.stats b{display:block;font-size:1.6rem;color:var(--gold)}.stats span{font-size:.75rem;color:var(--mut)}
+table{width:100%;border-collapse:collapse;font-size:.82rem}th,td{text-align:left;padding:.45rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--mut);font-size:.7rem;text-transform:uppercase}.tw{overflow-x:auto;max-height:520px}
+.msg{padding:.6rem .9rem;border-radius:10px;margin-top:.8rem;font-size:.9rem}.msg.ok{background:#17382f;color:#9fe3c6}.msg.err{background:#3b1f1a;color:#f2b3a8}.mut{color:var(--mut);font-size:.85rem}
+#app{display:none}@media(max-width:700px){.row{grid-template-columns:1fr}}
+</style></head><body>
+<header><b>ROKI · ADMIN</b><span><a href="index.html" style="color:var(--gold);margin-right:1rem">View site</a><button class="alt" id="out" style="display:none;margin:0">Log out</button></span></header>
+<main>
+<div id="setup" class="card" style="display:none"><h2>Backend not connected yet</h2><p class="mut">Add your Supabase project URL and anon key to <code>config.js</code> (see README, steps 1 to 4), then reload this page.</p></div>
+<form id="login" class="card" style="display:none;max-width:420px;margin:3rem auto"><h2>Admin login</h2>
+<label>Username</label><input id="u" autocomplete="username" required><label>Password</label><input id="p" type="password" autocomplete="current-password" required>
+<button>Log in</button><div id="lm"></div></form>
+<div id="app">
+ <div class="tabs"><button data-t="events" class="on">Events</button><button data-t="photos">Photos</button><button data-t="activity">Visitor activity</button></div>
+ <section id="t-events"><div class="card"><h2>Add an event</h2><div class="row"><div><label>Title</label><input id="et"></div><div><label>Date</label><input id="ed" type="date"></div></div>
+  <div class="row"><div><label>Time (optional)</label><input id="eti" placeholder="e.g. 6:00 PM"></div><div><label>Photo (optional)</label><input id="ei" type="file" accept="image/*"></div></div>
+  <label>Description</label><textarea id="edsc" rows="3"></textarea><button id="eadd">Publish event</button><div id="em"></div></div>
+  <div class="card"><h2>Your events</h2><div id="elist" class="mut">Loading…</div></div></section>
+ <section id="t-photos" hidden><div class="card"><h2>Swap site photos</h2><p class="mut">Pick a new image for any spot. It goes live on the site straight away. Large photos are shrunk automatically.</p><div class="slots" id="slots"></div><div id="pm"></div></div></section>
+ <section id="t-activity" hidden><div class="card"><h2>Visitor activity</h2><div class="stats" id="stats"></div>
+  <div class="row"><div><label>Show</label><select id="ft"><option value="">All activity</option></select></div><div style="align-self:end"><button class="alt" id="ref">Refresh</button></div></div>
+  <div class="tw" style="margin-top:.8rem"><table><thead><tr><th>Time</th><th>Visitor</th><th>Activity</th><th>Detail</th><th>Device</th></tr></thead><tbody id="rows"></tbody></table></div>
+  <p class="mut" style="margin-top:.6rem">Shows the latest 400 actions. Visitors are anonymous session codes, not names.</p></div></section>
+</div></main>
+<script src="config.js"></script>
+<script>
+const C=CONFIG,$=s=>document.querySelector(s),EM=u=>u.trim().toLowerCase()+"@rokiadmin.com";
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const SLOTS=[["sunset","Main banner and sunset view","images/hero.webp"],["building","Main building","images/building.webp"],["fountain","Fountain","images/fountain.webp"],["cottages","Grounds and dining","images/cottages.webp"],["courtyard","Courtyard (events background)","images/courtyard.webp"],["pool","Swimming pool",""],["conference","Conference rooms",""]];
+let TOK=null;try{TOK=sessionStorage.getItem("roki-admin")}catch(e){}
+const say=(el,t,ok)=>{$(el).innerHTML=`<div class="msg ${ok?"ok":"err"}">${esc(t)}</div>`};
+async function api(p,o={}){const r=await fetch(C.supabaseUrl+p,{...o,headers:{apikey:C.supabaseKey,Authorization:"Bearer "+(TOK||C.supabaseKey),"Content-Type":"application/json",...(o.headers||{})}});
+ if(r.status===401||r.status===403){if(TOK&&r.status===401)logout();throw new Error("Not allowed. Please log in again.")}
+ if(!r.ok)throw new Error((await r.text()).slice(0,200));return r.status===204?null:r.json().catch(()=>null)}
+function logout(){TOK=null;try{sessionStorage.removeItem("roki-admin")}catch(e){}show()}
+function show(){const ok=C.supabaseUrl&&C.supabaseKey;$("#setup").style.display=ok?"none":"block";$("#login").style.display=ok&&!TOK?"block":"none";$("#app").style.display=ok&&TOK?"block":"none";$("#out").style.display=TOK?"inline-block":"none";if(ok&&TOK){loadEvents();loadSlots();loadActivity()}}
+$("#login").onsubmit=async e=>{e.preventDefault();try{const r=await fetch(C.supabaseUrl+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:C.supabaseKey,"Content-Type":"application/json"},body:JSON.stringify({email:EM($("#u").value),password:$("#p").value})});const j=await r.json();if(!j.access_token)throw 0;TOK=j.access_token;try{sessionStorage.setItem("roki-admin",TOK)}catch(e){}$("#p").value="";show()}catch(x){say("#lm","Wrong username or password.")}};
+$("#out").onclick=logout;
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("on",x===b));["events","photos","activity"].forEach(t=>$("#t-"+t).hidden=t!==b.dataset.t);if(b.dataset.t==="activity")loadActivity()});
+/* shrink + upload image to the public bucket, return its URL */
+async function upload(file,prefix){const bmp=await createImageBitmap(file),k=Math.min(1,1600/Math.max(bmp.width,bmp.height)),c=document.createElement("canvas");c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
+ const blob=await new Promise(r=>c.toBlob(r,"image/jpeg",.85)),name=prefix+"-"+Date.now()+".jpg";
+ const r=await fetch(C.supabaseUrl+"/storage/v1/object/site-images/"+name,{method:"POST",headers:{apikey:C.supabaseKey,Authorization:"Bearer "+TOK,"Content-Type":"image/jpeg"},body:blob});if(!r.ok)throw new Error("Upload failed: "+(await r.text()).slice(0,150));
+ return C.supabaseUrl+"/storage/v1/object/public/site-images/"+name}
+/* events */
+async function loadEvents(){try{const rows=await api("/rest/v1/events?select=*&order=event_date.asc");$("#elist").innerHTML=rows.length?rows.map(e=>`<div class="ev"><div><b>${esc(e.title)}</b><div class="mut">${esc(e.event_date)} ${esc(e.event_time||"")} ${esc(e.description||"")}</div></div><button class="del" data-id="${e.id}">Delete</button></div>`).join(""):"No events yet.";
+ document.querySelectorAll(".del").forEach(b=>b.onclick=async()=>{if(confirm("Delete this event?")){await api("/rest/v1/events?id=eq."+b.dataset.id,{method:"DELETE"});loadEvents()}})}catch(e){$("#elist").textContent=e.message}}
+$("#eadd").onclick=async()=>{try{if(!$("#et").value||!$("#ed").value)throw new Error("Please add a title and date.");let img=null;const f=$("#ei").files[0];if(f)img=await upload(f,"event");
+ await api("/rest/v1/events",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify({title:$("#et").value,event_date:$("#ed").value,event_time:$("#eti").value||null,description:$("#edsc").value||null,image_url:img})});
+ ["#et","#ed","#eti","#edsc","#ei"].forEach(s=>$(s).value="");say("#em","Event published. It now shows on the website.",1);loadEvents()}catch(e){say("#em",e.message)}};
+/* photos */
+async function loadSlots(){let cur={};try{(await api("/rest/v1/site_images?select=key,url")).forEach(r=>cur[r.key]=r.url)}catch(e){}
+ $("#slots").innerHTML=SLOTS.map(([k,l,d])=>`<div class="slot"><img id="im-${k}" src="${esc(cur[k]||d)}" alt=""><h3>${l}</h3><input type="file" accept="image/*" data-k="${k}"><button class="alt rs" data-k="${k}" style="margin-top:.4rem">Reset to original</button></div>`).join("");
+ document.querySelectorAll('.slot input[type=file]').forEach(i=>i.onchange=async()=>{const k=i.dataset.k;try{say("#pm","Uploading…",1);const url=await upload(i.files[0],k);await api("/rest/v1/site_images",{method:"POST",headers:{Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({key:k,url,updated_at:new Date().toISOString()})});$("#im-"+k).src=url;say("#pm","Photo updated. It is live on the site.",1)}catch(e){say("#pm",e.message)}});
+ document.querySelectorAll(".rs").forEach(b=>b.onclick=async()=>{try{await api("/rest/v1/site_images?key=eq."+b.dataset.k,{method:"DELETE"});loadSlots();say("#pm","Reset to the original photo.",1)}catch(e){say("#pm",e.message)}})}
+/* activity */
+const LBL={page_view:"Visited the site",section_view:"Viewed a section",chat_open:"Opened the chat",chat_question:"Asked the chat",booking_request:"Sent a booking request",enquiry_sent:"Sent an enquiry",whatsapp_click:"Tapped WhatsApp",call_click:"Tapped call",directions_click:"Tapped directions",video_play:"Played the video",tiktok_click:"Opened TikTok",theme_toggle:"Switched theme"};
+let ACT=[];async function loadActivity(){try{ACT=await api("/rest/v1/activity?select=*&order=created_at.desc&limit=400");
+ const day=Date.now()-864e5,t=ACT.filter(a=>new Date(a.created_at)>day),n=ty=>t.filter(a=>a.type===ty).length;
+ $("#stats").innerHTML=[[new Set(t.map(a=>a.session_id)).size,"Visitors (24h)"],[n("page_view"),"Page views (24h)"],[n("chat_question"),"Chat questions"],[n("booking_request")+n("enquiry_sent"),"Bookings and enquiries"],[n("whatsapp_click")+n("call_click"),"Calls and WhatsApp taps"]].map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join("");
+ const types=[...new Set(ACT.map(a=>a.type))],cur=$("#ft").value;$("#ft").innerHTML='<option value="">All activity</option>'+types.map(t=>`<option value="${t}">${LBL[t]||t}</option>`).join("");$("#ft").value=cur;draw()}catch(e){$("#rows").innerHTML=`<tr><td colspan=5>${esc(e.message)}</td></tr>`}}
+function draw(){const f=$("#ft").value;$("#rows").innerHTML=ACT.filter(a=>!f||a.type===f).map(a=>`<tr><td>${new Date(a.created_at).toLocaleString("en-KE",{dateStyle:"short",timeStyle:"short"})}</td><td>${esc((a.session_id||"").slice(0,6))}</td><td>${esc(LBL[a.type]||a.type)}</td><td>${esc(a.detail||"")}</td><td>${esc(a.device||"")}</td></tr>`).join("")||"<tr><td colspan=5>No activity yet.</td></tr>"}
+$("#ft").onchange=draw;$("#ref").onclick=loadActivity;setInterval(()=>{if(TOK&&!$("#t-activity").hidden)loadActivity()},30000);
+show();
+</script></body></html>
